@@ -149,7 +149,18 @@ app.get("/tuitions", async (req, res) => {
 app.get("/latest-tuitions", async (req, res) => {
     try {
         const limit = parseInt(req.query.limit);
-        const result = await tuitionsCollection.find().sort({ createdAt: -1 }).limit(limit).toArray();
+        const query = { status: "approved" };
+        const result = await tuitionsCollection.find(query).sort({ createdAt: -1 }).limit(limit).toArray();
+        res.send(result);
+    } catch (err) {
+        console.log(err);
+    }
+});
+app.patch("/tuitions/:id", async (req, res) => {
+    try {
+        const query = { _id: new ObjectId(req.params.id) };
+        const { status } = req.body;
+        const result = await tuitionsCollection.updateOne(query, { $set: { status } });
         res.send(result);
     } catch (err) {
         console.log(err);
