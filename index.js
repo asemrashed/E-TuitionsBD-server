@@ -53,6 +53,7 @@ client
 
 const database = client.db("e-tuitionsbd");
 const usersCollection = database.collection("users");
+const tutorsCollection = database.collection("tutors");
 
 const tuitionsCollection = database.collection("tuitions");
 
@@ -156,11 +157,48 @@ app.get("/latest-tuitions", async (req, res) => {
         console.log(err);
     }
 });
+// tuitions status update
 app.patch("/tuitions/:id", async (req, res) => {
     try {
         const query = { _id: new ObjectId(req.params.id) };
         const { status } = req.body;
         const result = await tuitionsCollection.updateOne(query, { $set: { status } });
+        res.send(result);
+    } catch (err) {
+        console.log(err);
+    }
+});
+app.delete("/tuitions/:id", async (req, res) => {
+    try {
+        const query = { _id: new ObjectId(req.params.id) };
+        const result = await tuitionsCollection.deleteOne(query);
+        res.send(result);
+    } catch (err) {
+        console.log(err);
+    }
+});
+
+// Tutors API
+app.get('/tutors', async (req, res) => {
+    try {
+        const result = await tutorsCollection.find().toArray();
+        res.send(result);
+    } catch (err) {
+        console.log(err);
+    }
+})
+app.post("/tutors", async (req, res) => {
+  const {email} = req.body ;
+  if(email){
+    const query = {email: email};
+    const existingTutor = await tutorsCollection.findOne(query);
+    if(existingTutor){
+      return res.status(400).send({message: "Tutor already exists"});
+    } 
+  }
+    try {
+        const newTutor = req.body;
+        const result = await tutorsCollection.insertOne(newTutor);
         res.send(result);
     } catch (err) {
         console.log(err);
