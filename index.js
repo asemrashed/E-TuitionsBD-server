@@ -24,7 +24,8 @@ const verifyToken = async (req, res, next) => {
   }
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
-    req.decodedUser = decodedToken;
+    req.decodedEmail = decodedToken.email;
+    console.log('eamil', decodedToken.email);
     next();
   } catch (error) {
     return res.status(401).send({ message: "unauthorized access" });
@@ -67,14 +68,14 @@ app.post("/users", async (req, res) => {
   const query = { email: newUser.email };
   const existingUser = await usersCollection.findOne(query);
   if (existingUser) {
-    return res.status(400).send({ message: "User already exists" });
+    return res.send({ message: "User already exists" });
   }
   const result = await usersCollection.insertOne(newUser);
   res.send(result);
 });
 
 // ... users endpoints ...
-app.get("/users", async (req, res) => {
+app.get("/users", verifyToken, async (req, res) => {
   try {
     const { email } = req.query;
     const query = {};
