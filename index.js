@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const admin = require("firebase-admin");
+const jwt = require("jsonwebtoken");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -10,7 +12,6 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-const admin = require("firebase-admin");
 const serviceAccount = require("./e-tuitionsbd-firebase-adminsdk.json");
 
 admin.initializeApp({
@@ -30,6 +31,25 @@ const verifyToken = async (req, res, next) => {
   } catch (error) {
     return res.status(401).send({ message: "unauthorized access" });
   }
+};
+
+const verifyJWTToken = (req, res, next) => {
+  const header = req.headers.authorization;
+  if (!header) {
+    return res.status(401).send({ message: "Unauthorized access, no header" });
+  }
+  const token = header.split(" ")[1];
+  if (!token) {
+    return res.status(401).send({ messagae: "Unauthorized access, no entry" });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, function (err, decoded) {
+    if (err) {
+      return res.status(401).send({ messagae: "Unauthorized access" });
+    }
+    req.decoded_email = decoded.email;
+    next();
+  });
 };
 
 const uri = process.env.DB_URI;
@@ -55,8 +75,15 @@ client
 const database = client.db("e-tuitionsbd");
 const usersCollection = database.collection("users");
 const tutorsCollection = database.collection("tutors");
-
 const tuitionsCollection = database.collection("tuitions");
+
+app.post("/getToken", async (req, res) => {
+  const email = req.decodedEmail
+  const token = jwt.sign({email}, process.env.JWT_SECRET, {
+    expiresIn: "7d"
+  });
+  res.send({ token: token });
+});
 
 app.get("/", (req, res) => {
   res.send("E-TuitionsBD Server is running");
