@@ -54,7 +54,6 @@ const verifyJWTToken = (req, res, next) => {
 
 const uri = process.env.DB_URI;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -169,7 +168,7 @@ app.get("/tuitions", async (req, res) => {
         if (req.query.email) {
             query = { tutorEmail: req.query.email };
         }
-        const result = await tuitionsCollection.find(query).toArray();
+        const result = await tuitionsCollection.find(query).sort({ createdAt: -1 }).toArray();
         res.send(result);
     } catch (err) {
         console.log(err);
@@ -208,8 +207,13 @@ app.delete("/tuitions/:id", async (req, res) => {
 
 // Tutors API
 app.get('/tutors', async (req, res) => {
+  const query={};
+  const limit = parseInt(req.query.limit);
+  if(limit){
+    query.limit= limit;
+  }
     try {
-        const result = await tutorsCollection.find().toArray();
+        const result = await tutorsCollection.find().limit(limit).sort({ createdAt: -1 }).toArray();
         res.send(result);
     } catch (err) {
         console.log(err);
