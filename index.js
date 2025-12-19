@@ -109,8 +109,13 @@ app.get("/users", verifyToken, async (req, res) => {
     if (email) {
       query.email = email;
     }
-    const result = await usersCollection.find(query).toArray();
-    res.send(result);
+    if(query.email){
+      const result = await usersCollection.findOne(query);
+      res.send(result);
+    }else{
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    }
   } catch (err) {
     console.log(err);
     res.status(500).send({ message: "Internal server error" });
@@ -180,6 +185,16 @@ app.get("/latest-tuitions", async (req, res) => {
         const limit = parseInt(req.query.limit);
         const query = { status: "approved" };
         const result = await tuitionsCollection.find(query).sort({ createdAt: -1 }).limit(limit).toArray();
+        res.send(result);
+    } catch (err) {
+        console.log(err);
+    }
+});
+app.get("/tuitions/:id", async (req, res) => {
+    try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await tuitionsCollection.findOne(query);
         res.send(result);
     } catch (err) {
         console.log(err);
