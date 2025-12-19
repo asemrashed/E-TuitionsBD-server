@@ -76,6 +76,7 @@ const database = client.db("e-tuitionsbd");
 const usersCollection = database.collection("users");
 const tutorsCollection = database.collection("tutors");
 const tuitionsCollection = database.collection("tuitions");
+const applicationsCollection = database.collection("applications");
 
 app.post("/getToken", async (req, res) => {
   const email = req.decodedEmail
@@ -271,4 +272,23 @@ app.patch("/tutors/:id", async (req, res) => {
   } catch (err) {
     console.log(err);
   }
+});
+
+// Tuition Application
+app.post("/applications", async (req, res) => {
+    try {
+        const newApplication = req.body;
+        const result = await applicationsCollection.insertOne(newApplication);
+        res.send(result);
+    } catch (err) {
+        console.log(err);
+    }
+});
+app.get("/applications", async (req, res) => {
+    try {
+        const result = await applicationsCollection.find().toArray();
+        res.send(result);
+    } catch (err) {
+        console.log(err);
+    }
 });
