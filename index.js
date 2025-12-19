@@ -223,30 +223,28 @@ app.delete("/tuitions/:id", async (req, res) => {
 
 // Tutors API
 app.get('/tutors', async (req, res) => {
-  const query={};
-  const limit = parseInt(req.query.limit);
-  const email = req.query.email;
-  if(limit){
-    query.limit= limit;
-  }
-  if(email){
-    query.email = email;
-  }
-    try {
-        if(limit){
-          const result = await tutorsCollection.find().limit(limit).sort({ createdAt: -1 }).toArray();
-          res.send(result);
-        }else if(email){
-          const result = await tutorsCollection.findOne({email: email});
-          res.send(result);
-        }else{
-          const result = await tutorsCollection.find().toArray();
-          res.send(result);
-        }
-    } catch (err) {
-        console.log(err);
+  try {
+    const { email, limit } = req.query;
+    if (email) {
+      const result = await tutorsCollection.findOne({ email });
+      return res.send(result); 
     }
-})
+
+    let cursor = tutorsCollection.find().sort({ createdAt: -1 });
+
+    if (limit) {
+      cursor = cursor.limit(Number(limit));
+    }
+
+    const result = await cursor.toArray();
+    res.send(result);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: 'Server error' });
+  }
+});
+
 app.post("/tutors", async (req, res) => {
   const {email} = req.body ;
   if(email){
@@ -263,4 +261,14 @@ app.post("/tutors", async (req, res) => {
     } catch (err) {
         console.log(err);
     }
+});
+app.patch("/tutors/:id", async (req, res) => {
+  try {
+    const query = { _id: new ObjectId(req.params.id) };
+    const { status } = req.body;
+    const result = await tutorsCollection.updateOne(query, { $set: { status } });
+    res.send(result);
+  } catch (err) {
+    console.log(err);
+  }
 });
