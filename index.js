@@ -225,12 +225,24 @@ app.delete("/tuitions/:id", async (req, res) => {
 app.get('/tutors', async (req, res) => {
   const query={};
   const limit = parseInt(req.query.limit);
+  const email = req.query.email;
   if(limit){
     query.limit= limit;
   }
+  if(email){
+    query.email = email;
+  }
     try {
-        const result = await tutorsCollection.find().limit(limit).sort({ createdAt: -1 }).toArray();
-        res.send(result);
+        if(limit){
+          const result = await tutorsCollection.find().limit(limit).sort({ createdAt: -1 }).toArray();
+          res.send(result);
+        }else if(email){
+          const result = await tutorsCollection.findOne({email: email});
+          res.send(result);
+        }else{
+          const result = await tutorsCollection.find().toArray();
+          res.send(result);
+        }
     } catch (err) {
         console.log(err);
     }
