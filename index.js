@@ -245,7 +245,6 @@ app.get('/tutors', async (req, res) => {
     res.status(500).send({ error: 'Server error' });
   }
 });
-
 app.post("/tutors", async (req, res) => {
   const {email} = req.body ;
   if(email){
@@ -258,6 +257,15 @@ app.post("/tutors", async (req, res) => {
     try {
         const newTutor = req.body;
         const result = await tutorsCollection.insertOne(newTutor);
+        res.send(result);
+    } catch (err) {
+        console.log(err);
+    }
+});
+app.get("/tutors/:id", async (req, res) => {
+    try {
+        const query = { _id: new ObjectId(req.params.id) };
+        const result = await tutorsCollection.findOne(query);
         res.send(result);
     } catch (err) {
         console.log(err);
