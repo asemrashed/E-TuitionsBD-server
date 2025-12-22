@@ -4,6 +4,7 @@ require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const admin = require("firebase-admin");
 const jwt = require("jsonwebtoken");
+const stripe = require('stripe')(`${process.env.STRIPE_SECRET_KEY}`);
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -27,10 +28,9 @@ const verifyToken = async (req, res, next) => {
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
     req.decodedEmail = decodedToken.email;
-    console.log('eamil', decodedToken.email);
     next();
   } catch (error) {
-    return res.status(401).send({ message: "unauthorized access" });
+    return res.status(401).send({ message: "unauthorized accesss" });
   }
 };
 
@@ -66,17 +66,50 @@ const client = new MongoClient(uri, {
 client
   .connect()
   .then(() => {
-    app.listen(port, () => {
-      console.log("E-TuitionsBD server running on port:", port);
-    });
+    // Update Tuition
+app.patch("/tuitions/:id", async (req, res) => {
+    try {
+        const id = req.params.id;
+        const item = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updatedDoc = {
+            $set: {
+                ...item
+            }
+        }
+        const result = await tuitionsCollection.updateOne(filter, updatedDoc);
+        res.send(result);
+    } catch (error) {
+    }
+})
+
+// Update Application
+app.patch("/applications/:id", async (req, res) => {
+    try {
+        const id = req.params.id;
+        const item = req.body;
+        const filter = { _id: new ObjectId(id) };
+         const updatedDoc = {
+            $set: {
+                ...item
+            }
+        }
+        const result = await applicationsCollection.updateOne(filter, updatedDoc);
+        res.send(result);
+    } catch (error) {
+    }
+})
+
+app.listen(port, () => {
+});
   })
-  .catch(err => console.log(err));
 
 const database = client.db("e-tuitionsbd");
 const usersCollection = database.collection("users");
 const tutorsCollection = database.collection("tutors");
 const tuitionsCollection = database.collection("tuitions");
 const applicationsCollection = database.collection("applications");
+const paymentsCollection = database.collection("payments");
 
 app.post("/getToken", async (req, res) => {
   const email = req.decodedEmail
@@ -101,8 +134,6 @@ app.post("/users", async (req, res) => {
   const result = await usersCollection.insertOne(newUser);
   res.send(result);
 });
-
-// ... users endpoints ...
 app.get("/users", verifyToken, async (req, res) => {
   try {
     const { email } = req.query;
@@ -118,7 +149,6 @@ app.get("/users", verifyToken, async (req, res) => {
       res.send(result);
     }
   } catch (err) {
-    console.log(err);
     res.status(500).send({ message: "Internal server error" });
   }
 });
@@ -135,7 +165,6 @@ app.patch("/users/me", async (req, res) => {
     const result = await usersCollection.updateOne(query, { $set: data });
     res.send(result);
   } catch (err) {
-    console.log(err);
   }
 });
 app.patch("/users/:id", async (req, res) => {
@@ -145,7 +174,6 @@ app.patch("/users/:id", async (req, res) => {
     const result = await usersCollection.updateOne(query, { $set: { status } });
     res.send(result);
   } catch (err) {
-    console.log(err);
   }
 });
 app.delete("/users/:id", async (req, res) => {
@@ -154,7 +182,16 @@ app.delete("/users/:id", async (req, res) => {
     const result = await usersCollection.deleteOne(query);
     res.send(result);
   } catch (err) {
-    console.log(err);
+  }
+});
+// check role
+app.get("/users/:email/role", async (req, res) => {
+  try {
+    const { email } = req.params;
+    const query = { email };
+    const user = await usersCollection.findOne(query);
+    res.send(user?.role);
+  } catch (err) {
   }
 });
 
@@ -165,7 +202,6 @@ app.post("/tuitions", async (req, res) => {
         const result = await tuitionsCollection.insertOne(item);
         res.send(result);
     } catch (err) {
-        console.log(err);
     }
 });
 
@@ -178,7 +214,6 @@ app.get("/tuitions", async (req, res) => {
         const result = await tuitionsCollection.find(query).sort({ createdAt: -1 }).toArray();
         res.send(result);
     } catch (err) {
-        console.log(err);
     }
 });
 app.get("/latest-tuitions", async (req, res) => {
@@ -188,7 +223,6 @@ app.get("/latest-tuitions", async (req, res) => {
         const result = await tuitionsCollection.find(query).sort({ createdAt: -1 }).limit(limit).toArray();
         res.send(result);
     } catch (err) {
-        console.log(err);
     }
 });
 app.get("/tuitions/:id", async (req, res) => {
@@ -198,7 +232,6 @@ app.get("/tuitions/:id", async (req, res) => {
         const result = await tuitionsCollection.findOne(query);
         res.send(result);
     } catch (err) {
-        console.log(err);
     }
 });
 // tuitions status update
@@ -209,7 +242,6 @@ app.patch("/tuitions/:id", async (req, res) => {
         const result = await tuitionsCollection.updateOne(query, { $set: { status } });
         res.send(result);
     } catch (err) {
-        console.log(err);
     }
 });
 app.delete("/tuitions/:id", async (req, res) => {
@@ -218,7 +250,6 @@ app.delete("/tuitions/:id", async (req, res) => {
         const result = await tuitionsCollection.deleteOne(query);
         res.send(result);
     } catch (err) {
-        console.log(err);
     }
 });
 
@@ -254,13 +285,12 @@ app.post("/tutors", async (req, res) => {
       return res.status(400).send({message: "Tutor already exists"});
     } 
   }
-    try {
-        const newTutor = req.body;
-        const result = await tutorsCollection.insertOne(newTutor);
-        res.send(result);
-    } catch (err) {
-        console.log(err);
-    }
+  try {
+      const newTutor = req.body;
+      const result = await tutorsCollection.insertOne(newTutor);
+      res.send(result);
+  } catch (err) {
+  }
 });
 app.get("/tutors/:id", async (req, res) => {
     try {
@@ -268,17 +298,23 @@ app.get("/tutors/:id", async (req, res) => {
         const result = await tutorsCollection.findOne(query);
         res.send(result);
     } catch (err) {
-        console.log(err);
     }
 });
 app.patch("/tutors/:id", async (req, res) => {
   try {
-    const query = { _id: new ObjectId(req.params.id) };
-    const { status } = req.body;
-    const result = await tutorsCollection.updateOne(query, { $set: { status } });
+    const query = { _id: req.params.id};
+    const updatedData = req.body;
+    const result = await tutorsCollection.updateOne(query, { $set: updatedData });
     res.send(result);
   } catch (err) {
-    console.log(err);
+  }
+});
+app.delete("/tutors/:id", async (req, res) => {
+  try {
+    const query = { _id: req.params.id};
+    const result = await tutorsCollection.deleteOne(query);
+    res.send(result);
+  } catch (err) {
   }
 });
 
@@ -289,14 +325,151 @@ app.post("/applications", async (req, res) => {
         const result = await applicationsCollection.insertOne(newApplication);
         res.send(result);
     } catch (err) {
-        console.log(err);
     }
 });
 app.get("/applications", async (req, res) => {
+    const email = req.query.email;
+    const query = {};
+    if(email){
+        query.tutorEmail = email;
+        query.applicationStatus = "accepted";
+    }
     try {
-        const result = await applicationsCollection.find().toArray();
+        const result = await applicationsCollection.find(query).sort({ createdAt: -1 }).toArray();
         res.send(result);
     } catch (err) {
-        console.log(err);
+    }
+});
+app.delete("/applications/:id", async (req, res) => {
+    try {
+        const query = { _id: new ObjectId(req.params.id) };
+        const result = await applicationsCollection.deleteOne(query);
+        res.send(result);
+    } catch (err) {
+    }
+});
+
+// Payment 
+app.post("/payment-checkout-session", async (req, res) => {
+  try {
+    const paymentInfo = req.body;
+    const session = await stripe.checkout.sessions.create({
+      line_items: [
+        {
+          price_data: {
+            currency: "bdt",
+            product_data: {
+              name: 'Pay your tutor to accept the application',
+            },
+            unit_amount: parseInt(paymentInfo.salary) * 100,
+          },
+          quantity: 1,
+        },
+      ],
+      customer_email: paymentInfo.studentEmail,
+      mode: "payment",
+      metadata: {
+        applicationId: paymentInfo.applicationId,
+        tutoringTime: paymentInfo.tutoringTime,
+        tutorEmail: paymentInfo.tutorEmail,
+      },
+      success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
+    });
+    return res.send({ url: session.url });
+  } catch (err) {
+    return res.status(500).send({ success: false });
+  }
+});
+app.get("/payments", async (req, res) => {
+    const {email, role} = req.query;
+    const query = {};
+    if(email){
+        if(role === 'tutor') {
+            query.tutorEmail = email;
+        } else {
+            query.studentEmail = email;
+        }
+    }
+    
+    try {
+        const result = await paymentsCollection.find(query).sort({ createdAt: -1 }).toArray();
+        res.send(result);
+    } catch (err) {
+        res.status(500).send({ message: "Error fetching payments" });
+    }
+});
+
+// Admin Stats
+app.get("/admin-stats", async (req, res) => {
+    try {
+        const totalStudents = await usersCollection.countDocuments({ role: 'student' });
+        const totalTutors = await usersCollection.countDocuments({ role: 'tutor' });
+        const totalTuitions = await tuitionsCollection.countDocuments();
+        
+        // Calculate Total Revenue (Platform Earnings - usually a percentage or total transaction volume?)
+        // The prompt says "View total platform earnings. View all successful transaction history."
+        // Assuming "Platform Earnings" means the total amount transacted? Or a cut? 
+        // Based on "Pay your tutor to accept the application", the money goes to the Platform or Tutor?
+        // Usually stripes goes to platform account. So let's sum up 'amount'.
+        const payments = await paymentsCollection.find().toArray();
+        const totalRevenue = payments.reduce((sum, item) => sum + (item.amount || 0), 0); // amount is in cents usually? 
+        // In payment-checkout-session: unit_amount: parseInt(paymentInfo.salary) * 100
+        // So stored amount is in cents. 
+        // We should check if we want to display typical number. 
+        
+        // For Rechart: View total platform earnings (maybe over time?)
+        // Let's aggregate by date (e.g., day or month)
+        // Simple aggregation for now: Map to { name: date, revenue: amount }
+        
+        const revenueHistory = await paymentsCollection.aggregate([
+          {
+            $group: {
+              _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+              revenue: { $sum: "$amount" }
+            }
+          },
+          { $sort: { _id: 1 } }
+        ]).toArray();
+
+        res.send({
+            totalStudents,
+            totalTutors,
+            totalTuitions,
+            totalRevenue, 
+            revenueHistory
+        });
+    } catch (err) {
+        res.status(500).send({ message: "Error fetching stats" });
+    }
+});
+app.patch("/payment-success", async (req, res) => {
+    try {
+        const { sessionId } = req.query;
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        const metadata = session.metadata;
+        const paymentStatus = session.payment_status;
+        const transactionId = session.payment_intent;
+        if(paymentStatus === "paid"){
+            const paymentInfo = {
+                applicationId: metadata.applicationId,
+                studentEmail: session.customer_email,
+                tutorEmail: session.metadata.tutorEmail,
+                amount: session.amount_total,
+                currency: session.currency,
+                tutoringTime: session.metadata.tutoringTime,
+                paymentStatus: paymentStatus,
+                transectionId: transactionId,
+                createdAt: new Date(),
+            }
+            const payment = await paymentsCollection.insertOne(paymentInfo);
+            const result = await applicationsCollection.updateOne({ _id: new ObjectId(metadata.applicationId) }, { $set: { applicationStatus: "accepted" } });
+            res.send(result);
+        }
+        else{
+            res.send({ success: false });
+        }
+    } catch (err) {
+        res.status(500).send({ success: false });
     }
 });
