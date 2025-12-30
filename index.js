@@ -11,6 +11,22 @@ const port = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://e-tuitionsbd.web.app"
+];
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS not allowed"));
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 
 const FBdecoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString("utf8");
@@ -99,10 +115,6 @@ app.patch("/applications/:id", async (req, res) => {
     } catch (error) {
     }
 })
-
-app.listen(port, () => {
-});
-  })
 
 const database = client.db("e-tuitionsbd");
 const usersCollection = database.collection("users");
@@ -407,20 +419,8 @@ app.get("/admin-stats", async (req, res) => {
         const totalTutors = await usersCollection.countDocuments({ role: 'tutor' });
         const totalTuitions = await tuitionsCollection.countDocuments();
         
-        // Calculate Total Revenue (Platform Earnings - usually a percentage or total transaction volume?)
-        // The prompt says "View total platform earnings. View all successful transaction history."
-        // Assuming "Platform Earnings" means the total amount transacted? Or a cut? 
-        // Based on "Pay your tutor to accept the application", the money goes to the Platform or Tutor?
-        // Usually stripes goes to platform account. So let's sum up 'amount'.
         const payments = await paymentsCollection.find().toArray();
         const totalRevenue = payments.reduce((sum, item) => sum + (item.amount || 0), 0); // amount is in cents usually? 
-        // In payment-checkout-session: unit_amount: parseInt(paymentInfo.salary) * 100
-        // So stored amount is in cents. 
-        // We should check if we want to display typical number. 
-        
-        // For Rechart: View total platform earnings (maybe over time?)
-        // Let's aggregate by date (e.g., day or month)
-        // Simple aggregation for now: Map to { name: date, revenue: amount }
         
         const revenueHistory = await paymentsCollection.aggregate([
           {
@@ -473,3 +473,8 @@ app.patch("/payment-success", async (req, res) => {
         res.status(500).send({ success: false });
     }
 });
+
+app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+})
+  })
