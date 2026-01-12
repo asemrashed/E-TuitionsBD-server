@@ -179,6 +179,15 @@ app.patch("/users/me", async (req, res) => {
   } catch (err) {
   }
 });
+app.get("/users/:id", async (req, res) => {
+  try {
+    const query = { _id: new ObjectId(req.params.id) };
+    const result = await usersCollection.findOne(query);
+    res.send(result);
+  } catch (err) {
+    res.status(500).send({ message: "Internal server error" });
+  }
+});
 app.patch("/users/:id", async (req, res) => {
   try {
     const query = { _id: new ObjectId(req.params.id) };
